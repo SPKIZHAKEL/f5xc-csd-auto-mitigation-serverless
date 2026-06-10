@@ -1,0 +1,55 @@
+{
+  "Comment": "F5 CSD Auto Mitigation Playbook",
+  "StartAt": "CreateIncident",
+  "States": {
+
+    "CreateIncident": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:YOUR_ACCOUNT_ID:function:csd_create_incident",
+      "Next": "NotifyAnalyst",
+      "Retry": [{
+        "ErrorEquals": ["Lambda.ServiceException", "Lambda.AWSLambdaException"],
+        "IntervalSeconds": 5,
+        "MaxAttempts": 3,
+        "BackoffRate": 2
+      }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "HandleError" }]
+    },
+
+    "NotifyAnalyst": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:YOUR_ACCOUNT_ID:function:csd_notify",
+      "Next": "Mitigate",
+      "Retry": [{
+        "ErrorEquals": ["Lambda.ServiceException"],
+        "IntervalSeconds": 5,
+        "MaxAttempts": 2
+      }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "Mitigate" }]
+    },
+
+    "Mitigate": {
+      "Type": "Task",
+      "Resource": "arn:aws:lambda:us-east-1:YOUR_ACCOUNT_ID:function:csd_mitigate",
+      "Next": "PlaybookComplete",
+      "Retry": [{
+        "ErrorEquals": ["Lambda.ServiceException"],
+        "IntervalSeconds": 5,
+        "MaxAttempts": 3,
+        "BackoffRate": 2
+      }],
+      "Catch": [{ "ErrorEquals": ["States.ALL"], "Next": "HandleError" }]
+    },
+
+    "PlaybookComplete": {
+      "Type": "Succeed"
+    },
+
+    "HandleError": {
+      "Type": "Fail",
+      "Error": "PlaybookFailed",
+      "Cause": "A playbook step failed after retries"
+    }
+
+  }
+}
